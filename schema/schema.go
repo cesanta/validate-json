@@ -1,9 +1,11 @@
 package schema
 
 import (
-	"encoding/json"
+	"bytes"
 	"fmt"
 	"regexp"
+
+	json "github.com/cesanta/ucl"
 )
 
 var validType = map[string]bool{
@@ -17,22 +19,21 @@ var validType = map[string]bool{
 }
 
 func ValidateDraft04Schema(b []byte) error {
-	var v interface{}
-	err := json.Unmarshal(b, &v)
+	v, err := json.Parse(bytes.NewBuffer(b))
 	if err != nil {
 		return err
 	}
 	return validateDraft04Schema("#", v)
 }
 
-func validateDraft04Schema(path string, v interface{}) error {
+func validateDraft04Schema(path string, v json.Value) error {
 	switch v := v.(type) {
-	case map[string]interface{}:
-		s, found := v["$ref"]
+	case json.Object:
+		s, found := v.Lookup("$ref")
 		if found {
 			return validateURI(path+"/$ref", s)
 		}
-		validators := map[string]func(string, interface{}) error{
+		validators := map[string]func(string, json.Value) error{
 			"type":                 validateType,
 			"id":                   validateURI,
 			"$schema":              validateURI,
@@ -66,7 +67,7 @@ func validateDraft04Schema(path string, v interface{}) error {
 			"not":                  validateDraft04Schema,
 		}
 		for prop, validate := range validators {
-			val, found := v[prop]
+			val, found := v.Lookup(prop)
 			if !found {
 				continue
 			}
@@ -75,13 +76,13 @@ func validateDraft04Schema(path string, v interface{}) error {
 				return err
 			}
 		}
-		_, a := v["exclusiveMaximum"]
-		_, b := v["maximum"]
+		_, a := v.Lookup("exclusiveMaximum")
+		_, b := v.Lookup("maximum")
 		if a && !b {
 			return fmt.Errorf("%q: \"exclusiveMaximum\" requires \"maximum\" to be present")
 		}
-		_, a = v["exclusiveMinimum"]
-		_, b = v["minimum"]
+		_, a = v.Lookup("exclusiveMinimum")
+		_, b = v.Lookup("minimum")
 		if a && !b {
 			return fmt.Errorf("%q: \"exclusiveMinimum\" requires \"minimum\" to be present")
 		}
@@ -91,23 +92,23 @@ func validateDraft04Schema(path string, v interface{}) error {
 	}
 }
 
-func validateType(path string, v interface{}) error {
+func validateType(path string, v json.Value) error {
 	switch v := v.(type) {
-	case string:
-		if !validType[v] {
+	case json.String:
+		if !validType[v.Value] {
 			return fmt.Errorf("%q: %q is not a valid type", path, v)
 		}
 		return nil
-	case []interface{}:
-		if len(v) < 1 {
+	case json.Array:
+		if len(v.Value) < 1 {
 			return fmt.Errorf("%q must have at least 1 element", path)
 		}
-		for _, t := range v {
-			s, ok := t.(string)
+		for _, t := range v.Value {
+			s, ok := t.(json.String)
 			if !ok {
 				return fmt.Errorf("%q: each element must be a string", path)
 			}
-			if !validType[s] {
+			if !validType[s.Value] {
 				return fmt.Errorf("%q: %q is not a valid type", path, s)
 			}
 		}
@@ -123,103 +124,103 @@ func isValirURI(s string) error {
 	return nil
 }
 
-func validateURI(path string, v interface{}) error {
-	s, ok := v.(string)
+func validateURI(path string, v json.Value) error {
+	s, ok := v.(json.String)
 	if !ok {
 		return fmt.Errorf("%q must be a string", path)
 	}
-	if err := isValirURI(s); err != nil {
+	if err := isValirURI(s.Value); err != nil {
 		return fmt.Errorf("%q must be a valid URI: %s", path, err)
 	}
 	return nil
 }
 
-func validateString(path string, v interface{}) error {
-	_, ok := v.(string)
+func validateString(path string, v json.Value) error {
+	_, ok := v.(json.String)
 	if !ok {
 		return fmt.Errorf("%q must be a string", path)
 	}
 	return nil
 }
 
-func validateNumber(path string, v interface{}) error {
-	_, ok := v.(float64)
+func validateNumber(path string, v json.Value) error {
+	_, ok := v.(json.Number)
 	if !ok {
 		return fmt.Errorf("%q must be a number", path)
 	}
 	return nil
 }
 
-func validateBoolean(path string, v interface{}) error {
-	_, ok := v.(bool)
+func validateBoolean(path string, v json.Value) error {
+	_, ok := v.(json.Bool)
 	if !ok {
 		return fmt.Errorf("%q must be a boolean", path)
 	}
 	return nil
 }
 
-func validateMultipleOf(path string, v interface{}) error {
-	n, ok := v.(float64)
+func validateMultipleOf(path string, v json.Value) error {
+	n, ok := v.(json.Number)
 	if !ok {
 		return fmt.Errorf("%q must be a number", path)
 	}
-	if n <= 0 {
+	if n.Value <= 0 {
 		return fmt.Errorf("%q must be > 0", path)
 	}
 	return nil
 }
 
-func validatePositiveInteger(path string, v interface{}) error {
-	n, ok := v.(float64)
+func validatePositiveInteger(path string, v json.Value) error {
+	n, ok := v.(json.Number)
 	if !ok {
 		return fmt.Errorf("%q must be a number", path)
 	}
-	if n <= 0 {
+	if n.Value <= 0 {
 		return fmt.Errorf("%q must be > 0", path)
 	}
 	// TODO(imax): check that it's really an integer.
 	return nil
 }
 
-func validatePattern(path string, v interface{}) error {
-	s, ok := v.(string)
+func validatePattern(path string, v json.Value) error {
+	s, ok := v.(json.String)
 	if !ok {
 		return fmt.Errorf("%q must be a string", path)
 	}
-	_, err := regexp.Compile(s)
+	_, err := regexp.Compile(s.Value)
 	if err != nil {
 		return fmt.Errorf("%q must be a valid regexp: %s", path, err)
 	}
 	return nil
 }
 
-func validateBoolOrSchema(path string, v interface{}) error {
+func validateBoolOrSchema(path string, v json.Value) error {
 	switch v := v.(type) {
-	case bool:
+	case json.Bool:
 		return nil
 	default:
 		return validateDraft04Schema(path, v)
 	}
 }
 
-func validateItems(path string, v interface{}) error {
+func validateItems(path string, v json.Value) error {
 	switch v := v.(type) {
-	case []interface{}:
+	case json.Array:
 		return validateSchemaArray(path, v)
 	default:
 		return validateDraft04Schema(path, v)
 	}
 }
 
-func validateSchemaArray(path string, v interface{}) error {
-	a, ok := v.([]interface{})
+func validateSchemaArray(path string, v json.Value) error {
+	a, ok := v.(json.Array)
 	if !ok {
 		return fmt.Errorf("%q must be an array", path)
 	}
-	if len(a) < 1 {
+	if len(a.Value) < 1 {
 		return fmt.Errorf("%q must have at least 1 element", path)
 	}
-	for i, v := range a {
+	for i, v := range a.Value {
 		err := validateDraft04Schema(path+fmt.Sprintf("/[%d]", i), v)
 		if err != nil {
 			return err
@@ -228,16 +229,16 @@ func validateSchemaArray(path string, v interface{}) error {
 	return nil
 }
 
-func validateStringArray(path string, v interface{}) error {
-	a, ok := v.([]interface{})
+func validateStringArray(path string, v json.Value) error {
+	a, ok := v.(json.Array)
 	if !ok {
 		return fmt.Errorf("%q must be an array", path)
 	}
-	if len(a) < 1 {
+	if len(a.Value) < 1 {
 		return fmt.Errorf("%q must have at least 1 element", path)
 	}
-	for _, t := range a {
-		_, ok := t.(string)
+	for _, t := range a.Value {
+		_, ok := t.(json.String)
 		if !ok {
 			return fmt.Errorf("%q: each element must be a string", path)
 		}
@@ -246,13 +247,13 @@ func validateStringArray(path string, v interface{}) error {
 	return nil
 }
 
-func validateSchemaCollection(path string, v interface{}) error {
-	m, ok := v.(map[string]interface{})
+func validateSchemaCollection(path string, v json.Value) error {
+	m, ok := v.(json.Object)
 	if !ok {
 		return fmt.Errorf("%q must be an object", path)
 	}
-	for k, v := range m {
-		err := validateDraft04Schema(path+"/"+k, v)
+	for k, v := range m.Value {
+		err := validateDraft04Schema(path+"/"+k.Value, v)
 		if err != nil {
 			return err
 		}
@@ -260,33 +261,33 @@ func validateSchemaCollection(path string, v interface{}) error {
 	return nil
 }
 
-func validateDependencies(path string, v interface{}) error {
-	m, ok := v.(map[string]interface{})
+func validateDependencies(path string, v json.Value) error {
+	m, ok := v.(json.Object)
 	if !ok {
 		return fmt.Errorf("%q must be an object", path)
 	}
-	for k, v := range m {
+	for k, v := range m.Value {
 		switch v := v.(type) {
-		case map[string]interface{}:
-			err := validateDraft04Schema(path+"/"+k, v)
+		case json.Object:
+			err := validateDraft04Schema(path+"/"+k.Value, v)
 			if err != nil {
 				return err
 			}
-		case []interface{}:
-			return validateStringArray(path+"/"+k, v)
+		case json.Array:
+			return validateStringArray(path+"/"+k.Value, v)
 		default:
-			return fmt.Errorf("%q must be an array or an object", path+"/"+k)
+			return fmt.Errorf("%q must be an array or an object", path+"/"+k.Value)
 		}
 	}
 	return nil
 }
 
-func validateEnum(path string, v interface{}) error {
-	a, ok := v.([]interface{})
+func validateEnum(path string, v json.Value) error {
+	a, ok := v.(json.Array)
 	if !ok {
 		return fmt.Errorf("%q must be an array", path)
 	}
-	if len(a) < 1 {
+	if len(a.Value) < 1 {
 		return fmt.Errorf("%q must have at least 1 element", path)
 	}
 	return nil
