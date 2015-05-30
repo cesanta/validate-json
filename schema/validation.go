@@ -536,7 +536,7 @@ func (v *Validator) validateAgainstSchema(path string, val json.Value, schemaPat
 				}
 				// TODO(imax): find a nice way to handle this for floating point numbers.
 				if val.Value/float64(div.Value) != float64(int64(val.Value)/div.Value) {
-					return fmt.Errorf("%q must be a multiple of %g", path, div.Value)
+					return fmt.Errorf("%q must be a multiple of %d", path, div.Value)
 				}
 			default:
 				return fmt.Errorf("%q must be a number", schemaPath+"/multipleOf")
@@ -576,11 +576,11 @@ func (v *Validator) validateAgainstSchema(path string, val json.Value, schemaPat
 				}
 				if exclude {
 					if val.Value >= float64(max.Value) {
-						return fmt.Errorf("%q must be less than %g", path, max.Value)
+						return fmt.Errorf("%q must be less than %d", path, max.Value)
 					}
 				} else {
 					if val.Value > float64(max.Value) {
-						return fmt.Errorf("%q must be less then or equal to %g", path, max.Value)
+						return fmt.Errorf("%q must be less then or equal to %d", path, max.Value)
 					}
 				}
 			default:
@@ -621,11 +621,11 @@ func (v *Validator) validateAgainstSchema(path string, val json.Value, schemaPat
 				}
 				if exclude {
 					if val.Value <= float64(min.Value) {
-						return fmt.Errorf("%q must be greater than %g", path, min.Value)
+						return fmt.Errorf("%q must be greater than %d", path, min.Value)
 					}
 				} else {
 					if val.Value < float64(min.Value) {
-						return fmt.Errorf("%q must be greater then or equal to %g", path, min.Value)
+						return fmt.Errorf("%q must be greater then or equal to %d", path, min.Value)
 					}
 				}
 			default:
@@ -649,7 +649,7 @@ func (v *Validator) validateAgainstSchema(path string, val json.Value, schemaPat
 					return fmt.Errorf("%q must be a number and greater than 0", schemaPath+"/multipleOf")
 				}
 				if val.Value%div.Value != 0 {
-					return fmt.Errorf("%q must be a multiple of %g", path, div.Value)
+					return fmt.Errorf("%q must be a multiple of %d", path, div.Value)
 				}
 			default:
 				return fmt.Errorf("%q must be a number", schemaPath+"/multipleOf")
@@ -689,11 +689,11 @@ func (v *Validator) validateAgainstSchema(path string, val json.Value, schemaPat
 				}
 				if exclude {
 					if val.Value >= max.Value {
-						return fmt.Errorf("%q must be less than %g", path, max.Value)
+						return fmt.Errorf("%q must be less than %d", path, max.Value)
 					}
 				} else {
 					if val.Value > max.Value {
-						return fmt.Errorf("%q must be less then or equal to %g", path, max.Value)
+						return fmt.Errorf("%q must be less then or equal to %d", path, max.Value)
 					}
 				}
 			default:
@@ -734,11 +734,11 @@ func (v *Validator) validateAgainstSchema(path string, val json.Value, schemaPat
 				}
 				if exclude {
 					if val.Value <= min.Value {
-						return fmt.Errorf("%q must be greater than %g", path, min.Value)
+						return fmt.Errorf("%q must be greater than %d", path, min.Value)
 					}
 				} else {
 					if val.Value < min.Value {
-						return fmt.Errorf("%q must be greater then or equal to %g", path, min.Value)
+						return fmt.Errorf("%q must be greater then or equal to %d", path, min.Value)
 					}
 				}
 			default:

@@ -81,10 +81,11 @@ func TestCompliance(t *testing.T) {
 				err := v.Validate(case_.Find("data"))
 				switch {
 				case err == nil && valid:
-					fallthrough
+					passing++
+					t.Logf("%s %s", color.GreenString("PASSED"), case_.Find("description"))
 				case err != nil && !valid:
 					passing++
-					//t.Logf("%s %s", color.GreenString("PASSED"), case_.Find("description"))
+					t.Logf("%s %s: %s", color.GreenString("PASSED"), case_.Find("description"), err)
 				case err != nil && valid:
 					t.Errorf("%s %s: %s", color.RedString("FAILED"), case_.Find("description"), err)
 				case err == nil && !valid:
