@@ -27,7 +27,7 @@ func main() {
 		os.Exit(1)
 	}
 
-	err = schema.ValidateDraft04Schema(b)
+	_, err = schema.ParseDraft04Schema(b)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "Schema is not valid: %s\n", err)
 		os.Exit(1)

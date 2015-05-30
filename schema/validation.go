@@ -24,32 +24,32 @@ func (v *Validator) getSchemaByRef(uri string) (json.Value, error) {
 
 func isOfType(val json.Value, t string) bool {
 	switch val.(type) {
-	case json.Array:
+	case *json.Array:
 		return t == "array"
-	case json.Bool:
+	case *json.Bool:
 		return t == "boolean"
 	case json.Number:
 		// TODO(imax): add proper support for integers.
 		return t == "number" || t == "integer"
-	case json.Null:
+	case *json.Null:
 		return t == "null"
-	case json.Object:
+	case *json.Object:
 		return t == "object"
-	case json.String:
+	case *json.String:
 		return t == "string"
 	}
 	return false
 }
 
 func (v *Validator) validateAgainstSchema(path string, val json.Value, schemaPath string, schema_ json.Value) error {
-	schema, ok := schema_.(json.Object)
+	schema, ok := schema_.(*json.Object)
 	if !ok {
 		return fmt.Errorf("%q: schema must be an object", schemaPath)
 	}
 
 	ref, found := schema.Lookup("$ref")
 	if found {
-		sref, ok := ref.(json.String)
+		sref, ok := ref.(*json.String)
 		if !ok {
 			return fmt.Errorf("%q: must be a string", schemaPath+"/$ref")
 		}
@@ -63,14 +63,14 @@ func (v *Validator) validateAgainstSchema(path string, val json.Value, schemaPat
 	t, found := schema.Lookup("type")
 	if found {
 		switch t := t.(type) {
-		case json.String:
+		case *json.String:
 			if !isOfType(val, t.Value) {
-				return fmt.Errorf("%q: must be of type %q", path, t.Value)
+				return fmt.Errorf("%q: must be of type %q (%T)", path, t.Value, val)
 			}
-		case json.Array:
+		case *json.Array:
 			match := false
 			for i, v := range t.Value {
-				t, ok := v.(json.String)
+				t, ok := v.(*json.String)
 				if !ok {
 					return fmt.Errorf("%q: must be a string", schemaPath+fmt.Sprintf("/[%d]", i))
 				}

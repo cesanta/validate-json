@@ -36,7 +36,7 @@ func ValidateDraft04Schema(v json.Value) error {
 
 func validateDraft04Schema(path string, v json.Value) error {
 	switch v := v.(type) {
-	case json.Object:
+	case *json.Object:
 		s, found := v.Lookup("$ref")
 		if found {
 			return validateURI(path+"/$ref", s)
@@ -102,17 +102,17 @@ func validateDraft04Schema(path string, v json.Value) error {
 
 func validateType(path string, v json.Value) error {
 	switch v := v.(type) {
-	case json.String:
+	case *json.String:
 		if !validType[v.Value] {
 			return fmt.Errorf("%q: %q is not a valid type", path, v)
 		}
 		return nil
-	case json.Array:
+	case *json.Array:
 		if len(v.Value) < 1 {
 			return fmt.Errorf("%q must have at least 1 element", path)
 		}
 		for _, t := range v.Value {
-			s, ok := t.(json.String)
+			s, ok := t.(*json.String)
 			if !ok {
 				return fmt.Errorf("%q: each element must be a string", path)
 			}
@@ -133,7 +133,7 @@ func isValirURI(s string) error {
 }
 
 func validateURI(path string, v json.Value) error {
-	s, ok := v.(json.String)
+	s, ok := v.(*json.String)
 	if !ok {
 		return fmt.Errorf("%q must be a string", path)
 	}
@@ -144,7 +144,7 @@ func validateURI(path string, v json.Value) error {
 }
 
 func validateString(path string, v json.Value) error {
-	_, ok := v.(json.String)
+	_, ok := v.(*json.String)
 	if !ok {
 		return fmt.Errorf("%q must be a string", path)
 	}
@@ -160,7 +160,7 @@ func validateNumber(path string, v json.Value) error {
 }
 
 func validateBoolean(path string, v json.Value) error {
-	_, ok := v.(json.Bool)
+	_, ok := v.(*json.Bool)
 	if !ok {
 		return fmt.Errorf("%q must be a boolean", path)
 	}
@@ -191,7 +191,7 @@ func validatePositiveInteger(path string, v json.Value) error {
 }
 
 func validatePattern(path string, v json.Value) error {
-	s, ok := v.(json.String)
+	s, ok := v.(*json.String)
 	if !ok {
 		return fmt.Errorf("%q must be a string", path)
 	}
@@ -204,7 +204,7 @@ func validatePattern(path string, v json.Value) error {
 
 func validateBoolOrSchema(path string, v json.Value) error {
 	switch v := v.(type) {
-	case json.Bool:
+	case *json.Bool:
 		return nil
 	default:
 		return validateDraft04Schema(path, v)
@@ -213,7 +213,7 @@ func validateBoolOrSchema(path string, v json.Value) error {
 
 func validateItems(path string, v json.Value) error {
 	switch v := v.(type) {
-	case json.Array:
+	case *json.Array:
 		return validateSchemaArray(path, v)
 	default:
 		return validateDraft04Schema(path, v)
@@ -221,7 +221,7 @@ func validateItems(path string, v json.Value) error {
 }
 
 func validateSchemaArray(path string, v json.Value) error {
-	a, ok := v.(json.Array)
+	a, ok := v.(*json.Array)
 	if !ok {
 		return fmt.Errorf("%q must be an array", path)
 	}
@@ -238,7 +238,7 @@ func validateSchemaArray(path string, v json.Value) error {
 }
 
 func validateStringArray(path string, v json.Value) error {
-	a, ok := v.(json.Array)
+	a, ok := v.(*json.Array)
 	if !ok {
 		return fmt.Errorf("%q must be an array", path)
 	}
@@ -246,7 +246,7 @@ func validateStringArray(path string, v json.Value) error {
 		return fmt.Errorf("%q must have at least 1 element", path)
 	}
 	for _, t := range a.Value {
-		_, ok := t.(json.String)
+		_, ok := t.(*json.String)
 		if !ok {
 			return fmt.Errorf("%q: each element must be a string", path)
 		}
@@ -256,7 +256,7 @@ func validateStringArray(path string, v json.Value) error {
 }
 
 func validateSchemaCollection(path string, v json.Value) error {
-	m, ok := v.(json.Object)
+	m, ok := v.(*json.Object)
 	if !ok {
 		return fmt.Errorf("%q must be an object", path)
 	}
@@ -270,18 +270,18 @@ func validateSchemaCollection(path string, v json.Value) error {
 }
 
 func validateDependencies(path string, v json.Value) error {
-	m, ok := v.(json.Object)
+	m, ok := v.(*json.Object)
 	if !ok {
 		return fmt.Errorf("%q must be an object", path)
 	}
 	for k, v := range m.Value {
 		switch v := v.(type) {
-		case json.Object:
+		case *json.Object:
 			err := validateDraft04Schema(path+"/"+k.Value, v)
 			if err != nil {
 				return err
 			}
-		case json.Array:
+		case *json.Array:
 			return validateStringArray(path+"/"+k.Value, v)
 		default:
 			return fmt.Errorf("%q must be an array or an object", path+"/"+k.Value)
@@ -291,7 +291,7 @@ func validateDependencies(path string, v json.Value) error {
 }
 
 func validateEnum(path string, v json.Value) error {
-	a, ok := v.(json.Array)
+	a, ok := v.(*json.Array)
 	if !ok {
 		return fmt.Errorf("%q must be an array", path)
 	}
