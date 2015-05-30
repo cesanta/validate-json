@@ -152,9 +152,12 @@ func validateString(path string, v json.Value) error {
 }
 
 func validateNumber(path string, v json.Value) error {
-	_, ok := v.(json.Number)
+	_, ok := v.(*json.Number)
 	if !ok {
-		return fmt.Errorf("%q must be a number", path)
+		_, ok := v.(*json.Integer)
+		if !ok {
+			return fmt.Errorf("%q must be a number", path)
+		}
 	}
 	return nil
 }
@@ -168,25 +171,29 @@ func validateBoolean(path string, v json.Value) error {
 }
 
 func validateMultipleOf(path string, v json.Value) error {
-	n, ok := v.(json.Number)
-	if !ok {
+	switch n := v.(type) {
+	case *json.Number:
+		if n.Value <= 0 {
+			return fmt.Errorf("%q must be > 0", path)
+		}
+	case *json.Integer:
+		if n.Value <= 0 {
+			return fmt.Errorf("%q must be > 0", path)
+		}
+	default:
 		return fmt.Errorf("%q must be a number", path)
-	}
-	if n.Value <= 0 {
-		return fmt.Errorf("%q must be > 0", path)
 	}
 	return nil
 }
 
 func validatePositiveInteger(path string, v json.Value) error {
-	n, ok := v.(json.Number)
+	n, ok := v.(*json.Integer)
 	if !ok {
 		return fmt.Errorf("%q must be a number", path)
 	}
 	if n.Value <= 0 {
 		return fmt.Errorf("%q must be > 0", path)
 	}
-	// TODO(imax): check that it's really an integer.
 	return nil
 }
 

@@ -57,8 +57,9 @@ func isOfType(val json.Value, t string) bool {
 		return t == "array"
 	case *json.Bool:
 		return t == "boolean"
-	case json.Number:
-		// TODO(imax): add proper support for integers.
+	case *json.Number:
+		return t == "number"
+	case *json.Integer:
 		return t == "number" || t == "integer"
 	case *json.Null:
 		return t == "null"
@@ -233,9 +234,9 @@ func (v *Validator) validateAgainstSchema(path string, val json.Value, schemaPat
 	case *json.String:
 		v, found := schema.Lookup("minLength")
 		if found {
-			minLen, ok := v.(json.Number)
+			minLen, ok := v.(*json.Integer)
 			if !ok {
-				return fmt.Errorf("%q must be a number", schemaPath+"/minLength")
+				return fmt.Errorf("%q must be an integer", schemaPath+"/minLength")
 			}
 			if len(val.Value) < int(minLen.Value) {
 				return fmt.Errorf("%q must have at least %d characters", path, int(minLen.Value))
@@ -243,9 +244,9 @@ func (v *Validator) validateAgainstSchema(path string, val json.Value, schemaPat
 		}
 		v, found = schema.Lookup("maxLength")
 		if found {
-			maxLen, ok := v.(json.Number)
+			maxLen, ok := v.(*json.Integer)
 			if !ok {
-				return fmt.Errorf("%q must be a number", schemaPath+"/maxLength")
+				return fmt.Errorf("%q must be an integer", schemaPath+"/maxLength")
 			}
 			if len(val.Value) > int(maxLen.Value) {
 				return fmt.Errorf("%q must have at most %d characters", path, int(maxLen.Value))
@@ -325,9 +326,9 @@ func (v *Validator) validateAgainstSchema(path string, val json.Value, schemaPat
 		}
 		i, found = schema.Lookup("maxItems")
 		if found {
-			maxItems, ok := i.(json.Number)
+			maxItems, ok := i.(*json.Integer)
 			if !ok {
-				return fmt.Errorf("%q must be a number", schemaPath+"/maxItems")
+				return fmt.Errorf("%q must be an integer", schemaPath+"/maxItems")
 			}
 			if len(val.Value) > int(maxItems.Value) {
 				return fmt.Errorf("%q must have at most %d items", path, int(maxItems.Value))
@@ -335,9 +336,9 @@ func (v *Validator) validateAgainstSchema(path string, val json.Value, schemaPat
 		}
 		i, found = schema.Lookup("minItems")
 		if found {
-			minItems, ok := i.(json.Number)
+			minItems, ok := i.(*json.Integer)
 			if !ok {
-				return fmt.Errorf("%q must be a number", schemaPath+"/minItems")
+				return fmt.Errorf("%q must be an integer", schemaPath+"/minItems")
 			}
 			if len(val.Value) < int(minItems.Value) {
 				return fmt.Errorf("%q must have at least %d items", path, int(minItems.Value))
@@ -362,9 +363,9 @@ func (v *Validator) validateAgainstSchema(path string, val json.Value, schemaPat
 	case *json.Object:
 		i, found := schema.Lookup("maxProperties")
 		if found {
-			maxProps, ok := i.(json.Number)
+			maxProps, ok := i.(*json.Integer)
 			if !ok {
-				return fmt.Errorf("%q must be a number", schemaPath+"/maxProperties")
+				return fmt.Errorf("%q must be an integer", schemaPath+"/maxProperties")
 			}
 			if len(val.Value) > int(maxProps.Value) {
 				return fmt.Errorf("%q must have at most %d properties", path, int(maxProps.Value))
@@ -372,9 +373,9 @@ func (v *Validator) validateAgainstSchema(path string, val json.Value, schemaPat
 		}
 		i, found = schema.Lookup("minProperties")
 		if found {
-			minProps, ok := i.(json.Number)
+			minProps, ok := i.(*json.Integer)
 			if !ok {
-				return fmt.Errorf("%q must be a number", schemaPath+"/minProperties")
+				return fmt.Errorf("%q must be an integer", schemaPath+"/minProperties")
 			}
 			if len(val.Value) < int(minProps.Value) {
 				return fmt.Errorf("%q must have at least %d properties", path, int(minProps.Value))
@@ -414,7 +415,7 @@ func (v *Validator) validateAgainstSchema(path string, val json.Value, schemaPat
 			for k, v := range props.Value {
 				err := ValidateDraft04Schema(v)
 				if err != nil {
-					return fmt.Errorf("%q must be a valid schema: %s", schemaPath+"/properties/"+k.Value)
+					return fmt.Errorf("%q must be a valid schema: %s", schemaPath+"/properties/"+k.Value, err)
 				}
 				_, found = validateWith[k.Value]
 				if found {
@@ -450,7 +451,7 @@ func (v *Validator) validateAgainstSchema(path string, val json.Value, schemaPat
 			case *json.Object:
 				err := ValidateDraft04Schema(ap)
 				if err != nil {
-					return fmt.Errorf("%q must be a valid schema: %s", schemaPath+"/additionalProperties")
+					return fmt.Errorf("%q must be a valid schema: %s", schemaPath+"/additionalProperties", err)
 				}
 				for k, v := range validateWith {
 					if len(v) == 0 {
@@ -516,68 +517,234 @@ func (v *Validator) validateAgainstSchema(path string, val json.Value, schemaPat
 				}
 			}
 		}
-	case json.Number:
+	case *json.Number:
 		i, found := schema.Lookup("multipleOf")
 		if found {
-			div, ok := i.(json.Number)
-			if !ok || div.Value <= 0 {
-				return fmt.Errorf("%q must be a number and greater than 0", schemaPath+"/multipleOf")
-			}
-			// TODO(imax): find a nice way to handle this for floating point numbers.
-			if val.Value/div.Value != float64(int(val.Value/div.Value)) {
-				return fmt.Errorf("%q must be a multiple of %g", path, div.Value)
+			switch div := i.(type) {
+			case *json.Number:
+				if div.Value <= 0 {
+					return fmt.Errorf("%q must be a number and greater than 0", schemaPath+"/multipleOf")
+				}
+				// TODO(imax): find a nice way to handle this for floating point numbers.
+				if val.Value/div.Value != float64(int(val.Value/div.Value)) {
+					return fmt.Errorf("%q must be a multiple of %g", path, div.Value)
+				}
+			case *json.Integer:
+				if div.Value <= 0 {
+					return fmt.Errorf("%q must be a number and greater than 0", schemaPath+"/multipleOf")
+				}
+				// TODO(imax): find a nice way to handle this for floating point numbers.
+				if val.Value/float64(div.Value) != float64(int64(val.Value)/div.Value) {
+					return fmt.Errorf("%q must be a multiple of %g", path, div.Value)
+				}
+			default:
+				return fmt.Errorf("%q must be a number", schemaPath+"/multipleOf")
 			}
 		}
 		i, found = schema.Lookup("maximum")
 		if found {
-			max, ok := i.(json.Number)
-			if !ok {
+			switch max := i.(type) {
+			case *json.Number:
+				exclude := false
+				i, found := schema.Lookup("exclusiveMaximum")
+				if found {
+					e, ok := i.(*json.Bool)
+					if !ok {
+						return fmt.Errorf("%q must be a boolean", schemaPath+"/exclusiveMaximum")
+					}
+					exclude = e.Value
+				}
+				if exclude {
+					if val.Value >= max.Value {
+						return fmt.Errorf("%q must be less than %g", path, max.Value)
+					}
+				} else {
+					if val.Value > max.Value {
+						return fmt.Errorf("%q must be less then or equal to %g", path, max.Value)
+					}
+				}
+			case *json.Integer:
+				exclude := false
+				i, found := schema.Lookup("exclusiveMaximum")
+				if found {
+					e, ok := i.(*json.Bool)
+					if !ok {
+						return fmt.Errorf("%q must be a boolean", schemaPath+"/exclusiveMaximum")
+					}
+					exclude = e.Value
+				}
+				if exclude {
+					if val.Value >= float64(max.Value) {
+						return fmt.Errorf("%q must be less than %g", path, max.Value)
+					}
+				} else {
+					if val.Value > float64(max.Value) {
+						return fmt.Errorf("%q must be less then or equal to %g", path, max.Value)
+					}
+				}
+			default:
 				return fmt.Errorf("%q must be a number", schemaPath+"/maximum")
-			}
-			exclude := false
-			i, found := schema.Lookup("exclusiveMaximum")
-			if found {
-				e, ok := i.(*json.Bool)
-				if !ok {
-					return fmt.Errorf("%q must be a boolean", schemaPath+"/exclusiveMaximum")
-				}
-				exclude = e.Value
-			}
-			if exclude {
-				if val.Value >= max.Value {
-					return fmt.Errorf("%q must be less than %g", path, max.Value)
-				}
-			} else {
-				if val.Value > max.Value {
-					return fmt.Errorf("%q must be less then or equal to %g", path, max.Value)
-				}
 			}
 		}
 		i, found = schema.Lookup("minimum")
 		if found {
-			min, ok := i.(json.Number)
-			if !ok {
+			switch min := i.(type) {
+			case *json.Number:
+				exclude := false
+				i, found := schema.Lookup("exclusiveMinimum")
+				if found {
+					e, ok := i.(*json.Bool)
+					if !ok {
+						return fmt.Errorf("%q must be a boolean", schemaPath+"/exclusiveMinimum")
+					}
+					exclude = e.Value
+				}
+				if exclude {
+					if val.Value <= min.Value {
+						return fmt.Errorf("%q must be greater than %g", path, min.Value)
+					}
+				} else {
+					if val.Value < min.Value {
+						return fmt.Errorf("%q must be greater then or equal to %g", path, min.Value)
+					}
+				}
+			case *json.Integer:
+				exclude := false
+				i, found := schema.Lookup("exclusiveMinimum")
+				if found {
+					e, ok := i.(*json.Bool)
+					if !ok {
+						return fmt.Errorf("%q must be a boolean", schemaPath+"/exclusiveMinimum")
+					}
+					exclude = e.Value
+				}
+				if exclude {
+					if val.Value <= float64(min.Value) {
+						return fmt.Errorf("%q must be greater than %g", path, min.Value)
+					}
+				} else {
+					if val.Value < float64(min.Value) {
+						return fmt.Errorf("%q must be greater then or equal to %g", path, min.Value)
+					}
+				}
+			default:
 				return fmt.Errorf("%q must be a number", schemaPath+"/minimum")
 			}
-			exclude := false
-			i, found := schema.Lookup("exclusiveMinimum")
-			if found {
-				e, ok := i.(*json.Bool)
-				if !ok {
-					return fmt.Errorf("%q must be a boolean", schemaPath+"/exclusiveMinimum")
+		}
+	case *json.Integer:
+		i, found := schema.Lookup("multipleOf")
+		if found {
+			switch div := i.(type) {
+			case *json.Number:
+				if div.Value <= 0 {
+					return fmt.Errorf("%q must be a number and greater than 0", schemaPath+"/multipleOf")
 				}
-				exclude = e.Value
-			}
-			if exclude {
-				if val.Value <= min.Value {
-					return fmt.Errorf("%q must be greater than %g", path, min.Value)
+				// TODO(imax): find a nice way to handle this for floating point numbers.
+				if float64(val.Value)/div.Value != float64(int(float64(val.Value)/div.Value)) {
+					return fmt.Errorf("%q must be a multiple of %g", path, div.Value)
 				}
-			} else {
-				if val.Value < min.Value {
-					return fmt.Errorf("%q must be greater then or equal to %g", path, min.Value)
+			case *json.Integer:
+				if div.Value <= 0 {
+					return fmt.Errorf("%q must be a number and greater than 0", schemaPath+"/multipleOf")
 				}
+				if val.Value%div.Value != 0 {
+					return fmt.Errorf("%q must be a multiple of %g", path, div.Value)
+				}
+			default:
+				return fmt.Errorf("%q must be a number", schemaPath+"/multipleOf")
 			}
 		}
+		i, found = schema.Lookup("maximum")
+		if found {
+			switch max := i.(type) {
+			case *json.Number:
+				exclude := false
+				i, found := schema.Lookup("exclusiveMaximum")
+				if found {
+					e, ok := i.(*json.Bool)
+					if !ok {
+						return fmt.Errorf("%q must be a boolean", schemaPath+"/exclusiveMaximum")
+					}
+					exclude = e.Value
+				}
+				if exclude {
+					if float64(val.Value) >= max.Value {
+						return fmt.Errorf("%q must be less than %g", path, max.Value)
+					}
+				} else {
+					if float64(val.Value) > max.Value {
+						return fmt.Errorf("%q must be less then or equal to %g", path, max.Value)
+					}
+				}
+			case *json.Integer:
+				exclude := false
+				i, found := schema.Lookup("exclusiveMaximum")
+				if found {
+					e, ok := i.(*json.Bool)
+					if !ok {
+						return fmt.Errorf("%q must be a boolean", schemaPath+"/exclusiveMaximum")
+					}
+					exclude = e.Value
+				}
+				if exclude {
+					if val.Value >= max.Value {
+						return fmt.Errorf("%q must be less than %g", path, max.Value)
+					}
+				} else {
+					if val.Value > max.Value {
+						return fmt.Errorf("%q must be less then or equal to %g", path, max.Value)
+					}
+				}
+			default:
+				return fmt.Errorf("%q must be a number", schemaPath+"/maximum")
+			}
+		}
+		i, found = schema.Lookup("minimum")
+		if found {
+			switch min := i.(type) {
+			case *json.Number:
+				exclude := false
+				i, found := schema.Lookup("exclusiveMinimum")
+				if found {
+					e, ok := i.(*json.Bool)
+					if !ok {
+						return fmt.Errorf("%q must be a boolean", schemaPath+"/exclusiveMinimum")
+					}
+					exclude = e.Value
+				}
+				if exclude {
+					if float64(val.Value) <= min.Value {
+						return fmt.Errorf("%q must be greater than %g", path, min.Value)
+					}
+				} else {
+					if float64(val.Value) < min.Value {
+						return fmt.Errorf("%q must be greater then or equal to %g", path, min.Value)
+					}
+				}
+			case *json.Integer:
+				exclude := false
+				i, found := schema.Lookup("exclusiveMinimum")
+				if found {
+					e, ok := i.(*json.Bool)
+					if !ok {
+						return fmt.Errorf("%q must be a boolean", schemaPath+"/exclusiveMinimum")
+					}
+					exclude = e.Value
+				}
+				if exclude {
+					if val.Value <= min.Value {
+						return fmt.Errorf("%q must be greater than %g", path, min.Value)
+					}
+				} else {
+					if val.Value < min.Value {
+						return fmt.Errorf("%q must be greater then or equal to %g", path, min.Value)
+					}
+				}
+			default:
+				return fmt.Errorf("%q must be a number", schemaPath+"/minimum")
+			}
+		}
+
 	}
 
 	return nil

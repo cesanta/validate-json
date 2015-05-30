@@ -26,12 +26,24 @@ func equal(a json.Value, b json.Value) bool {
 			return false
 		}
 		return x.Value == b.Value
-	case json.Number:
-		b, ok := b.(json.Number)
-		if !ok {
+	case *json.Number:
+		switch b := b.(type) {
+		case *json.Number:
+			return x.Value == b.Value // XXX: comparing floating point numbers.
+		case *json.Integer:
+			return x.Value == float64(b.Value) // XXX: comparing floating point numbers.
+		default:
 			return false
 		}
-		return x.Value == b.Value // XXX: comparing floating point numbers.
+	case *json.Integer:
+		switch b := b.(type) {
+		case *json.Number:
+			return float64(x.Value) == b.Value // XXX: comparing floating point numbers.
+		case *json.Integer:
+			return x.Value == b.Value
+		default:
+			return false
+		}
 	case *json.Null:
 		_, ok := b.(*json.Null)
 		if !ok {
