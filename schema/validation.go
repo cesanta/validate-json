@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"regexp"
 	"strings"
+	"unicode/utf8"
 
 	json "github.com/cesanta/ucl"
 )
@@ -238,7 +239,7 @@ func (v *Validator) validateAgainstSchema(path string, val json.Value, schemaPat
 			if !ok {
 				return fmt.Errorf("%q must be an integer", schemaPath+"/minLength")
 			}
-			if len(val.Value) < int(minLen.Value) {
+			if utf8.RuneCountInString(val.Value) < int(minLen.Value) {
 				return fmt.Errorf("%q must have at least %d characters", path, int(minLen.Value))
 			}
 		}
@@ -248,7 +249,7 @@ func (v *Validator) validateAgainstSchema(path string, val json.Value, schemaPat
 			if !ok {
 				return fmt.Errorf("%q must be an integer", schemaPath+"/maxLength")
 			}
-			if len(val.Value) > int(maxLen.Value) {
+			if utf8.RuneCountInString(val.Value) > int(maxLen.Value) {
 				return fmt.Errorf("%q must have at most %d characters", path, int(maxLen.Value))
 			}
 		}
