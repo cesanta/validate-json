@@ -18,11 +18,19 @@ var validType = map[string]bool{
 	"string":  true,
 }
 
-func ValidateDraft04Schema(b []byte) error {
+func ParseDraft04Schema(b []byte) (json.Value, error) {
 	v, err := json.Parse(bytes.NewBuffer(b))
 	if err != nil {
-		return err
+		return nil, err
 	}
+	err = ValidateDraft04Schema(v)
+	if err != nil {
+		return nil, err
+	}
+	return v, nil
+}
+
+func ValidateDraft04Schema(v json.Value) error {
 	return validateDraft04Schema("#", v)
 }
 
