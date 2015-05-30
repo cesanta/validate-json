@@ -14,6 +14,9 @@ type Validator struct {
 }
 
 func NewValidator(schema json.Value, loader *Loader) *Validator {
+	if loader != nil {
+		expandIdsAndRefsAndAddThemToLoader(nil, schema, loader)
+	}
 	return &Validator{schema: schema, loader: loader}
 }
 
