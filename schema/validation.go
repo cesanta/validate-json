@@ -3,6 +3,7 @@ package schema
 import (
 	"fmt"
 	"regexp"
+	"strings"
 
 	json "github.com/cesanta/ucl"
 )
@@ -85,6 +86,98 @@ func (v *Validator) validateAgainstSchema(path string, val json.Value, schemaPat
 			}
 		default:
 			return fmt.Errorf("%q: must be a string or an array", schemaPath+"/type")
+		}
+	}
+
+	i, found := schema.Lookup("allOf")
+	if found {
+		a, ok := i.(*json.Array)
+		if !ok {
+			return fmt.Errorf("%q must be an array", schemaPath+"/allOf")
+		}
+		if len(a.Value) < 1 {
+			return fmt.Errorf("%q must have at least 1 element", schemaPath+"/allOf")
+		}
+		for i, s := range a.Value {
+			err := ValidateDraft04Schema(s)
+			if err != nil {
+				return fmt.Errorf("%q must be a valid schema: %s", fmt.Sprintf("%s/allOf/[%d]", schemaPath, i), err)
+			}
+			err = v.validateAgainstSchema(path, val, fmt.Sprintf("%s/allOf/[%d]", schemaPath, i), s)
+			if err != nil {
+				return err
+			}
+		}
+	}
+
+	i, found = schema.Lookup("anyOf")
+	if found {
+		a, ok := i.(*json.Array)
+		if !ok {
+			return fmt.Errorf("%q must be an array", schemaPath+"/anyOf")
+		}
+		if len(a.Value) < 1 {
+			return fmt.Errorf("%q must have at least 1 element", schemaPath+"/anyOf")
+		}
+		errs := []string{}
+		for i, s := range a.Value {
+			err := ValidateDraft04Schema(s)
+			if err != nil {
+				return fmt.Errorf("%q must be a valid schema: %s", fmt.Sprintf("%s/anyOf/[%d]", schemaPath, i), err)
+			}
+			err = v.validateAgainstSchema(path, val, fmt.Sprintf("%s/anyOf/[%d]", schemaPath, i), s)
+			if err != nil {
+				errs = append(errs, err.Error())
+			}
+		}
+		if len(errs) == len(a.Value) {
+			return fmt.Errorf("%q must be valid against at least one of the schemas in %q, but it is not:\n%s", path, schemaPath+"/anyOf", strings.Join(errs, "\n"))
+		}
+	}
+
+	i, found = schema.Lookup("oneOf")
+	if found {
+		a, ok := i.(*json.Array)
+		if !ok {
+			return fmt.Errorf("%q must be an array", schemaPath+"/oneOf")
+		}
+		if len(a.Value) < 1 {
+			return fmt.Errorf("%q must have at least 1 element", schemaPath+"/oneOf")
+		}
+		errs := make([]string, len(a.Value))
+		valid := []int{}
+		for i, s := range a.Value {
+			err := ValidateDraft04Schema(s)
+			if err != nil {
+				return fmt.Errorf("%q must be a valid schema: %s", fmt.Sprintf("%s/oneOf/[%d]", schemaPath, i), err)
+			}
+			err = v.validateAgainstSchema(path, val, fmt.Sprintf("%s/oneOf/[%d]", schemaPath, i), s)
+			if err != nil {
+				errs[i] = err.Error()
+			} else {
+				valid = append(valid, i)
+			}
+		}
+		if len(valid) == 0 {
+			return fmt.Errorf("%q must be valid against against one of the schemas in %q, but it is not:\n%s", path, schemaPath+"/oneOf", strings.Join(errs, "\n"))
+		}
+		if len(valid) > 1 {
+			ss := []string{}
+			for _, vv := range valid {
+				ss = append(ss, fmt.Sprintf("%s/oneOf/[%d]", schemaPath, vv))
+			}
+			return fmt.Errorf("%q must be valid against exactly one of the schemas in %q, but it is valid against %s", path, schemaPath+"/oneOf", strings.Join(ss, " and "))
+		}
+	}
+
+	if not, found := schema.Lookup("not"); found {
+		err := ValidateDraft04Schema(not)
+		if err != nil {
+			return fmt.Errorf("%q must be a valid schema: %s", schemaPath+"/not", err)
+		}
+		err = v.validateAgainstSchema(path, val, schemaPath+"/not", not)
+		if err == nil {
+			return fmt.Errorf("%q must not be valid against %q, but it is", path, schemaPath+"/not")
 		}
 	}
 
