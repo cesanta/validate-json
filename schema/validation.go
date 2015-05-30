@@ -2,6 +2,7 @@ package schema
 
 import (
 	"fmt"
+	"regexp"
 
 	json "github.com/cesanta/ucl"
 )
@@ -65,7 +66,7 @@ func (v *Validator) validateAgainstSchema(path string, val json.Value, schemaPat
 		switch t := t.(type) {
 		case *json.String:
 			if !isOfType(val, t.Value) {
-				return fmt.Errorf("%q: must be of type %q (%T)", path, t.Value, val)
+				return fmt.Errorf("%q: must be of type %q", path, t.Value)
 			}
 		case *json.Array:
 			match := false
@@ -84,6 +85,280 @@ func (v *Validator) validateAgainstSchema(path string, val json.Value, schemaPat
 			}
 		default:
 			return fmt.Errorf("%q: must be a string or an array", schemaPath+"/type")
+		}
+	}
+
+	switch val := val.(type) {
+	case *json.String:
+		v, found := schema.Lookup("minLength")
+		if found {
+			minLen, ok := v.(json.Number)
+			if !ok {
+				return fmt.Errorf("%q must be a number", schemaPath+"/minLength")
+			}
+			if len(val.Value) < int(minLen.Value) {
+				return fmt.Errorf("%q must have at least %d characters", path, int(minLen.Value))
+			}
+		}
+		v, found = schema.Lookup("maxLength")
+		if found {
+			maxLen, ok := v.(json.Number)
+			if !ok {
+				return fmt.Errorf("%q must be a number", schemaPath+"/maxLength")
+			}
+			if len(val.Value) > int(maxLen.Value) {
+				return fmt.Errorf("%q must have at most %d characters", path, int(maxLen.Value))
+			}
+		}
+		v, found = schema.Lookup("pattern")
+		if found {
+			pattern, ok := v.(*json.String)
+			if !ok {
+				return fmt.Errorf("%q must be a string", schemaPath+"/pattern")
+			}
+			re, err := regexp.Compile(pattern.Value)
+			if err != nil {
+				return fmt.Errorf("%q must be a valid regexp: %s", schemaPath+"/pattern", err)
+			}
+			if !re.MatchString(val.Value) {
+				return fmt.Errorf("%q must match regexp %q", path, pattern.Value)
+			}
+		}
+	case *json.Array:
+		i, found := schema.Lookup("items")
+		// If "items" is not present it is assumed to be an empty object, which
+		// means that any item is valid and "additionalItems" is ignored.
+		if found {
+			switch items := i.(type) {
+			case *json.Object:
+				err := ValidateDraft04Schema(items)
+				if err != nil {
+					return fmt.Errorf("%q must be a valid schema: %s", schemaPath+"/items")
+				}
+				for i, item := range val.Value {
+					err := v.validateAgainstSchema(fmt.Sprintf("%s/[%d]", path, i), item, schemaPath+"/items", items)
+					if err != nil {
+						return err
+					}
+				}
+			case *json.Array:
+				for i, item := range items.Value {
+					err := ValidateDraft04Schema(item)
+					if err != nil {
+						return fmt.Errorf("%q must be a valid schema: %s", fmt.Sprintf("%s/[%d]", schemaPath, i), err)
+					}
+				}
+				for i := 0; i < len(items.Value) && i < len(val.Value); i++ {
+					err := v.validateAgainstSchema(fmt.Sprintf("%s/[%d]", path, i), val.Value[i],
+						fmt.Sprintf("%s/[%d]", schemaPath, i), items.Value[i])
+					if err != nil {
+						return err
+					}
+				}
+				ai, found := schema.Lookup("additionalItems")
+				if found {
+					switch ai := ai.(type) {
+					case *json.Bool:
+						if ai.Value == false && len(items.Value) < len(val.Value) {
+							return fmt.Errorf("%q must have not more than %d items", path, len(items.Value))
+						}
+					case *json.Object:
+						err := ValidateDraft04Schema(ai)
+						if err != nil {
+							return fmt.Errorf("%q must be a valid schema: %s", schemaPath+"/additionalItems", err)
+						}
+						for i := len(items.Value); i < len(val.Value); i++ {
+							err := v.validateAgainstSchema(fmt.Sprintf("%s/[%d]", path, i), val.Value[i],
+								schemaPath+"/additionalItems", ai)
+							if err != nil {
+								return err
+							}
+						}
+					default:
+						return fmt.Errorf("%q must be an array or a boolean", schemaPath+"/additionalItems")
+					}
+				}
+			default:
+				return fmt.Errorf("%q must be an array or an object", schemaPath+"/items")
+			}
+		}
+		i, found = schema.Lookup("maxItems")
+		if found {
+			maxItems, ok := i.(json.Number)
+			if !ok {
+				return fmt.Errorf("%q must be a number", schemaPath+"/maxItems")
+			}
+			if len(val.Value) > int(maxItems.Value) {
+				return fmt.Errorf("%q must have at most %d items", path, int(maxItems.Value))
+			}
+		}
+		i, found = schema.Lookup("minItems")
+		if found {
+			minItems, ok := i.(json.Number)
+			if !ok {
+				return fmt.Errorf("%q must be a number", schemaPath+"/minItems")
+			}
+			if len(val.Value) < int(minItems.Value) {
+				return fmt.Errorf("%q must have at least %d items", path, int(minItems.Value))
+			}
+		}
+		// TODO(imax): handle uniqueItems.
+	case *json.Object:
+		i, found := schema.Lookup("maxProperties")
+		if found {
+			maxProps, ok := i.(json.Number)
+			if !ok {
+				return fmt.Errorf("%q must be a number", schemaPath+"/maxProperties")
+			}
+			if len(val.Value) > int(maxProps.Value) {
+				return fmt.Errorf("%q must have at most %d properties", path, int(maxProps.Value))
+			}
+		}
+		i, found = schema.Lookup("minProperties")
+		if found {
+			minProps, ok := i.(json.Number)
+			if !ok {
+				return fmt.Errorf("%q must be a number", schemaPath+"/minProperties")
+			}
+			if len(val.Value) < int(minProps.Value) {
+				return fmt.Errorf("%q must have at least %d properties", path, int(minProps.Value))
+			}
+		}
+		i, found = schema.Lookup("required")
+		if found {
+			req, ok := i.(*json.Array)
+			if !ok || len(req.Value) < 1 {
+				return fmt.Errorf("%q must be an array with at least one element", schemaPath+"/required")
+			}
+			for i, p := range req.Value {
+				prop, ok := p.(*json.String)
+				if !ok {
+					return fmt.Errorf("%q must be a string", fmt.Sprintf("%s/required/[%d]", schemaPath, i))
+				}
+				_, found := val.Lookup(prop.Value)
+				if !found {
+					return fmt.Errorf("%q must have property %q", path, prop.Value)
+				}
+			}
+		}
+		type schemaWithPath struct {
+			schema json.Value
+			path   string
+		}
+		validateWith := map[string][]schemaWithPath{}
+		for k := range val.Value {
+			validateWith[k.Value] = nil
+		}
+		i, found = schema.Lookup("properties")
+		if found {
+			props, ok := i.(*json.Object)
+			if !ok {
+				return fmt.Errorf("%q must be an object", schemaPath+"/properties")
+			}
+			for k, v := range props.Value {
+				err := ValidateDraft04Schema(v)
+				if err != nil {
+					return fmt.Errorf("%q must be a valid schema: %s", schemaPath+"/properties/"+k.Value)
+				}
+				_, found = validateWith[k.Value]
+				if found {
+					validateWith[k.Value] = []schemaWithPath{{v, schemaPath + "/properties/" + k.Value}}
+				}
+			}
+		}
+		i, found = schema.Lookup("patternProperties")
+		if found {
+			pprops, ok := i.(*json.Object)
+			if !ok {
+				return fmt.Errorf("%q must be an object", schemaPath+"/patternProperties")
+			}
+			for k, v := range pprops.Value {
+				err := ValidateDraft04Schema(v)
+				if err != nil {
+					return fmt.Errorf("%q must be a valid schema: %s", schemaPath+"/patternProperties/"+k.Value)
+				}
+				re, err := regexp.Compile(k.Value)
+				if err != nil {
+					return fmt.Errorf("%q: %q is not a valid regexp: %s", schemaPath+"/patternProperties", k.Value, err)
+				}
+				for p := range validateWith {
+					if re.MatchString(p) {
+						validateWith[p] = append(validateWith[p], schemaWithPath{v, schemaPath + "/patternProperties/" + k.Value})
+					}
+				}
+			}
+		}
+		i, found = schema.Lookup("additionalProperties")
+		if found {
+			switch ap := i.(type) {
+			case *json.Object:
+				err := ValidateDraft04Schema(ap)
+				if err != nil {
+					return fmt.Errorf("%q must be a valid schema: %s", schemaPath+"/additionalProperties")
+				}
+				for k, v := range validateWith {
+					if len(v) == 0 {
+						validateWith[k] = []schemaWithPath{{ap, schemaPath + "/additionalProperties"}}
+					}
+				}
+			case *json.Bool:
+				if ap.Value == false {
+					for k, v := range validateWith {
+						if len(v) == 0 {
+							return fmt.Errorf("%q is not in %q, is not matched by anything in %q and %q is set to false",
+								path+"/"+k, schemaPath+"/properties", schemaPath+"/patternProperties", schemaPath+"/additionalProperties")
+						}
+					}
+				}
+			default:
+				return fmt.Errorf("%q must be an object or a boolean", schemaPath+"/additionalProperties")
+			}
+		}
+		for prop, schemas := range validateWith {
+			for _, s := range schemas {
+				err := v.validateAgainstSchema(path+"/"+prop, val.Find(prop), s.path, s.schema)
+				if err != nil {
+					return err
+				}
+			}
+		}
+		i, found = schema.Lookup("dependencies")
+		if found {
+			deps, ok := i.(*json.Object)
+			if !ok {
+				return fmt.Errorf("%q must be an object", schemaPath+"/dependencies")
+			}
+			for prop, propDeps := range deps.Value {
+				if _, found = val.Lookup(prop.Value); !found {
+					continue
+				}
+				switch deps := propDeps.(type) {
+				case *json.Array:
+					if len(deps.Value) < 1 {
+						return fmt.Errorf("%q must have at least one element", schemaPath+"/dependencies/"+prop.Value)
+					}
+					for i, item := range deps.Value {
+						req, ok := item.(*json.String)
+						if !ok {
+							return fmt.Errorf("%q must be a string", fmt.Sprintf("%s/dependencies/%s/[%d]", schemaPath, prop.Value, i))
+						}
+						if _, found = val.Lookup(req.Value); !found {
+							return fmt.Errorf("%q: %q requires %q to be also present", path, prop.Value, req.Value)
+						}
+					}
+				case *json.Object:
+					err := ValidateDraft04Schema(deps)
+					if err != nil {
+						return fmt.Errorf("%q must be a valid schema: %s", schemaPath+"/dependencies/"+prop.Value, err)
+					}
+					err = v.validateAgainstSchema(path, val, schemaPath+"/dependencies/"+prop.Value, deps)
+					if err != nil {
+						return err
+					}
+				default:
+					return fmt.Errorf("%q must be an array or an object", schemaPath+"/dependencies/"+prop.Value)
+				}
+			}
 		}
 	}
 
