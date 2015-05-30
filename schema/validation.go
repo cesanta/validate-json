@@ -360,6 +360,68 @@ func (v *Validator) validateAgainstSchema(path string, val json.Value, schemaPat
 				}
 			}
 		}
+	case json.Number:
+		i, found := schema.Lookup("multipleOf")
+		if found {
+			div, ok := i.(json.Number)
+			if !ok || div.Value <= 0 {
+				return fmt.Errorf("%q must be a number and greater than 0", schemaPath+"/multipleOf")
+			}
+			// TODO(imax): find a nice way to handle this for floating point numbers.
+			if val.Value/div.Value != float64(int(val.Value/div.Value)) {
+				return fmt.Errorf("%q must be a multiple of %g", path, div.Value)
+			}
+		}
+		i, found = schema.Lookup("maximum")
+		if found {
+			max, ok := i.(json.Number)
+			if !ok {
+				return fmt.Errorf("%q must be a number", schemaPath+"/maximum")
+			}
+			exclude := false
+			i, found := schema.Lookup("exclusiveMaximum")
+			if found {
+				e, ok := i.(*json.Bool)
+				if !ok {
+					return fmt.Errorf("%q must be a boolean", schemaPath+"/exclusiveMaximum")
+				}
+				exclude = e.Value
+			}
+			if exclude {
+				if val.Value >= max.Value {
+					return fmt.Errorf("%q must be less than %g", path, max.Value)
+				}
+			} else {
+				if val.Value > max.Value {
+					return fmt.Errorf("%q must be less then or equal to %g", path, max.Value)
+				}
+			}
+		}
+		i, found = schema.Lookup("minimum")
+		if found {
+			min, ok := i.(json.Number)
+			if !ok {
+				return fmt.Errorf("%q must be a number", schemaPath+"/minimum")
+			}
+			exclude := false
+			i, found := schema.Lookup("exclusiveMinimum")
+			if found {
+				e, ok := i.(*json.Bool)
+				if !ok {
+					return fmt.Errorf("%q must be a boolean", schemaPath+"/exclusiveMinimum")
+				}
+				exclude = e.Value
+			}
+			if exclude {
+				if val.Value <= min.Value {
+					return fmt.Errorf("%q must be greater than %g", path, min.Value)
+				}
+			} else {
+				if val.Value < min.Value {
+					return fmt.Errorf("%q must be greater then or equal to %g", path, min.Value)
+				}
+			}
+		}
 	}
 
 	return nil
