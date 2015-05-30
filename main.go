@@ -35,7 +35,7 @@ func main() {
 		os.Exit(1)
 	}
 
-	validator := schema.NewValidator(s)
+	validator := schema.NewValidator(s, nil)
 
 	f, err := os.Open(*inputFile)
 	if err != nil {

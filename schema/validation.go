@@ -10,18 +10,42 @@ import (
 
 type Validator struct {
 	schema json.Value
+	loader *Loader
 }
 
-func NewValidator(schema json.Value) *Validator {
-	return &Validator{schema: schema}
+func NewValidator(schema json.Value, loader *Loader) *Validator {
+	return &Validator{schema: schema, loader: loader}
 }
 
 func (v *Validator) Validate(val json.Value) error {
 	return v.validateAgainstSchema("#", val, "#", v.schema)
 }
 
-func (v *Validator) getSchemaByRef(uri string) (json.Value, error) {
-	return nil, fmt.Errorf("schema refs are not supported yet")
+func (v *Validator) getSchemaByRef(uri string) (json.Value, json.Value, error) {
+	if strings.HasPrefix(uri, "#") {
+		r, err := resolveRef(v.schema, uri[1:])
+		if err != nil {
+			return nil, nil, fmt.Errorf("failed to resolve ref %q: %s", uri, err)
+		}
+		return r, v.schema, nil
+	}
+	if v.loader == nil {
+		return nil, nil, fmt.Errorf("need to have a loader (passed to NewValidator) to resolve remote refs")
+	}
+	if i := strings.Index(uri, "#"); i > 0 {
+		uri, ref := uri[:i], uri[i+1:]
+		s, err := v.loader.Get(uri)
+		if err != nil {
+			return nil, nil, err
+		}
+		r, err := resolveRef(s, ref)
+		if err != nil {
+			return nil, nil, fmt.Errorf("failed to resolve ref %q within %q: %s", ref, uri, err)
+		}
+		return r, s, nil
+	}
+	r, err := v.loader.Get(uri)
+	return r, r, err
 }
 
 func isOfType(val json.Value, t string) bool {
@@ -55,11 +79,11 @@ func (v *Validator) validateAgainstSchema(path string, val json.Value, schemaPat
 		if !ok {
 			return fmt.Errorf("%q: must be a string", schemaPath+"/$ref")
 		}
-		s, err := v.getSchemaByRef(sref.Value)
+		s, whole, err := v.getSchemaByRef(sref.Value)
 		if err != nil {
 			return err
 		}
-		return v.validateAgainstSchema(path, val, sref.Value, s)
+		return NewValidator(whole, v.loader).validateAgainstSchema(path, val, sref.Value, s)
 	}
 
 	t, found := schema.Lookup("type")

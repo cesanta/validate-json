@@ -11,6 +11,18 @@ import (
 
 func TestCompliance(t *testing.T) {
 	var passing, total, schemaErrors int
+	f, err := os.Open("draft04schema.json")
+	if err != nil {
+		t.Fatalf("Failed to open draft04schema.json: %s", err)
+	}
+	s, err := json.Parse(f)
+	f.Close()
+	if err != nil {
+		t.Fatalf("Failed to parse draft04schema.json: %s", err)
+	}
+	loader := NewLoader()
+	loader.Add(s)
+
 	files, err := filepath.Glob("schema-tests/tests/draft4/*.json")
 	if err != nil {
 		t.Fatalf("Test files not found: %s", err)
@@ -42,7 +54,7 @@ func TestCompliance(t *testing.T) {
 				t.Errorf(color.RedString("schema does not pass validation: %s", err))
 				schemaErrors++
 			}
-			v := NewValidator(test.Find("schema"))
+			v := NewValidator(test.Find("schema"), loader)
 			cases := test.Find("tests").(*json.Array)
 			for _, c := range cases.Value {
 				total++
