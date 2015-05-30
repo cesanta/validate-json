@@ -2,6 +2,7 @@ package schema
 
 import (
 	"fmt"
+	"net/url"
 	"regexp"
 	"strings"
 	"unicode/utf8"
@@ -27,7 +28,11 @@ func (v *Validator) Validate(val json.Value) error {
 
 func (v *Validator) getSchemaByRef(uri string) (json.Value, json.Value, error) {
 	if strings.HasPrefix(uri, "#") {
-		r, err := resolveRef(v.schema, uri[1:])
+		u, err := url.Parse(uri)
+		if err != nil {
+			return nil, nil, fmt.Errorf("failed tp parse %q: %s", uri, err)
+		}
+		r, err := resolveRef(v.schema, u.Fragment)
 		if err != nil {
 			return nil, nil, fmt.Errorf("failed to resolve ref %q: %s", uri, err)
 		}
@@ -37,7 +42,13 @@ func (v *Validator) getSchemaByRef(uri string) (json.Value, json.Value, error) {
 		return nil, nil, fmt.Errorf("need to have a loader (passed to NewValidator) to resolve remote refs")
 	}
 	if i := strings.Index(uri, "#"); i > 0 {
-		uri, ref := uri[:i], uri[i+1:]
+		u, err := url.Parse(uri)
+		if err != nil {
+			return nil, nil, fmt.Errorf("failed tp parse %q: %s", uri, err)
+		}
+		ref := u.Fragment
+		u.Fragment = ""
+		uri := u.String()
 		s, err := v.loader.Get(uri)
 		if err != nil {
 			return nil, nil, err
