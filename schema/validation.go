@@ -181,6 +181,27 @@ func (v *Validator) validateAgainstSchema(path string, val json.Value, schemaPat
 		}
 	}
 
+	i, found = schema.Lookup("enum")
+	if found {
+		enum, ok := i.(*json.Array)
+		if !ok {
+			return fmt.Errorf("%q must be an array", schemaPath+"/enum")
+		}
+		if len(enum.Value) < 1 {
+			return fmt.Errorf("%q must have at least one element", schemaPath+"/enum")
+		}
+		valid := false
+		for _, item := range enum.Value {
+			if equal(item, val) {
+				valid = true
+				break
+			}
+		}
+		if !valid {
+			return fmt.Errorf("%q must be one of %q", path, enum)
+		}
+	}
+
 	switch val := val.(type) {
 	case *json.String:
 		v, found := schema.Lookup("minLength")
@@ -295,7 +316,22 @@ func (v *Validator) validateAgainstSchema(path string, val json.Value, schemaPat
 				return fmt.Errorf("%q must have at least %d items", path, int(minItems.Value))
 			}
 		}
-		// TODO(imax): handle uniqueItems.
+		i, found = schema.Lookup("uniqueItems")
+		if found {
+			u, ok := i.(*json.Bool)
+			if !ok {
+				return fmt.Errorf("%q must be a boolean", schemaPath+"/uniqueItems")
+			}
+			if u.Value {
+				for i := range val.Value {
+					for j := i + 1; j < len(val.Value); j++ {
+						if equal(val.Value[i], val.Value[j]) {
+							return fmt.Errorf("%q: all items must be unique, but item %d is equal to item %d", path, i, j)
+						}
+					}
+				}
+			}
+		}
 	case *json.Object:
 		i, found := schema.Lookup("maxProperties")
 		if found {
