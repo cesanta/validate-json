@@ -1,6 +1,7 @@
 package schema
 
 import (
+	"net/http"
 	"os"
 	"path/filepath"
 	"testing"
@@ -9,7 +10,17 @@ import (
 	"github.com/fatih/color"
 )
 
+func serveRemotes(t *testing.T, done chan struct{}) {
+	defer close(done)
+	err := http.ListenAndServe("localhost:1234", http.FileServer(http.Dir("schema-tests/remotes")))
+	if err != nil {
+		t.Log("ListenAndServe failed: %s", err)
+	}
+}
+
 func TestCompliance(t *testing.T) {
+	done := make(chan struct{})
+	go serveRemotes(t, done)
 	var passing, total, schemaErrors int
 	f, err := os.Open("draft04schema.json")
 	if err != nil {
@@ -22,6 +33,13 @@ func TestCompliance(t *testing.T) {
 	}
 	loader := NewLoader()
 	loader.Add(s)
+	loader.EnableNetworkAccess(true)
+
+	select {
+	case <-done:
+		t.Fatalf("HTTP server died")
+	default:
+	}
 
 	files, err := filepath.Glob("schema-tests/tests/draft4/*.json")
 	if err != nil {

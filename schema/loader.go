@@ -2,6 +2,7 @@ package schema
 
 import (
 	"fmt"
+	"net/http"
 	"strings"
 
 	json "github.com/cesanta/ucl"
@@ -25,7 +26,17 @@ func (l *Loader) Get(id string) (json.Value, error) {
 		return s, nil
 	}
 	if l.networkEnabled {
-		return nil, fmt.Errorf("fetching schemas remotely is not implemented yet")
+		resp, err := http.Get(id)
+		if err != nil {
+			return nil, err
+		}
+		s, err := json.Parse(resp.Body)
+		resp.Body.Close()
+		if err != nil {
+			return nil, err
+		}
+		l.AddAs(s, id)
+		return s, nil
 	}
 	return nil, fmt.Errorf("schema %q is not present in the cache and fetching is disabled", id)
 }
