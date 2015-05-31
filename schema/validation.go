@@ -566,17 +566,17 @@ func (v *Validator) validateAgainstSchema(path string, val json.Value, schemaPat
 		}
 		i, found = schema.Lookup("maximum")
 		if found {
+			exclude := false
+			x, found := schema.Lookup("exclusiveMaximum")
+			if found {
+				e, ok := x.(*json.Bool)
+				if !ok {
+					return fmt.Errorf("%q must be a boolean", schemaPath+"/exclusiveMaximum")
+				}
+				exclude = e.Value
+			}
 			switch max := i.(type) {
 			case *json.Number:
-				exclude := false
-				i, found := schema.Lookup("exclusiveMaximum")
-				if found {
-					e, ok := i.(*json.Bool)
-					if !ok {
-						return fmt.Errorf("%q must be a boolean", schemaPath+"/exclusiveMaximum")
-					}
-					exclude = e.Value
-				}
 				if exclude {
 					if val.Value >= max.Value {
 						return fmt.Errorf("%q must be less than %g", path, max.Value)
@@ -587,15 +587,6 @@ func (v *Validator) validateAgainstSchema(path string, val json.Value, schemaPat
 					}
 				}
 			case *json.Integer:
-				exclude := false
-				i, found := schema.Lookup("exclusiveMaximum")
-				if found {
-					e, ok := i.(*json.Bool)
-					if !ok {
-						return fmt.Errorf("%q must be a boolean", schemaPath+"/exclusiveMaximum")
-					}
-					exclude = e.Value
-				}
 				if exclude {
 					if val.Value >= float64(max.Value) {
 						return fmt.Errorf("%q must be less than %d", path, max.Value)
@@ -611,17 +602,17 @@ func (v *Validator) validateAgainstSchema(path string, val json.Value, schemaPat
 		}
 		i, found = schema.Lookup("minimum")
 		if found {
+			exclude := false
+			x, found := schema.Lookup("exclusiveMinimum")
+			if found {
+				e, ok := x.(*json.Bool)
+				if !ok {
+					return fmt.Errorf("%q must be a boolean", schemaPath+"/exclusiveMinimum")
+				}
+				exclude = e.Value
+			}
 			switch min := i.(type) {
 			case *json.Number:
-				exclude := false
-				i, found := schema.Lookup("exclusiveMinimum")
-				if found {
-					e, ok := i.(*json.Bool)
-					if !ok {
-						return fmt.Errorf("%q must be a boolean", schemaPath+"/exclusiveMinimum")
-					}
-					exclude = e.Value
-				}
 				if exclude {
 					if val.Value <= min.Value {
 						return fmt.Errorf("%q must be greater than %g", path, min.Value)
@@ -632,15 +623,6 @@ func (v *Validator) validateAgainstSchema(path string, val json.Value, schemaPat
 					}
 				}
 			case *json.Integer:
-				exclude := false
-				i, found := schema.Lookup("exclusiveMinimum")
-				if found {
-					e, ok := i.(*json.Bool)
-					if !ok {
-						return fmt.Errorf("%q must be a boolean", schemaPath+"/exclusiveMinimum")
-					}
-					exclude = e.Value
-				}
 				if exclude {
 					if val.Value <= float64(min.Value) {
 						return fmt.Errorf("%q must be greater than %d", path, min.Value)
@@ -679,17 +661,17 @@ func (v *Validator) validateAgainstSchema(path string, val json.Value, schemaPat
 		}
 		i, found = schema.Lookup("maximum")
 		if found {
+			exclude := false
+			x, found := schema.Lookup("exclusiveMaximum")
+			if found {
+				e, ok := x.(*json.Bool)
+				if !ok {
+					return fmt.Errorf("%q must be a boolean", schemaPath+"/exclusiveMaximum")
+				}
+				exclude = e.Value
+			}
 			switch max := i.(type) {
 			case *json.Number:
-				exclude := false
-				i, found := schema.Lookup("exclusiveMaximum")
-				if found {
-					e, ok := i.(*json.Bool)
-					if !ok {
-						return fmt.Errorf("%q must be a boolean", schemaPath+"/exclusiveMaximum")
-					}
-					exclude = e.Value
-				}
 				if exclude {
 					if float64(val.Value) >= max.Value {
 						return fmt.Errorf("%q must be less than %g", path, max.Value)
@@ -700,15 +682,6 @@ func (v *Validator) validateAgainstSchema(path string, val json.Value, schemaPat
 					}
 				}
 			case *json.Integer:
-				exclude := false
-				i, found := schema.Lookup("exclusiveMaximum")
-				if found {
-					e, ok := i.(*json.Bool)
-					if !ok {
-						return fmt.Errorf("%q must be a boolean", schemaPath+"/exclusiveMaximum")
-					}
-					exclude = e.Value
-				}
 				if exclude {
 					if val.Value >= max.Value {
 						return fmt.Errorf("%q must be less than %d", path, max.Value)
@@ -724,17 +697,17 @@ func (v *Validator) validateAgainstSchema(path string, val json.Value, schemaPat
 		}
 		i, found = schema.Lookup("minimum")
 		if found {
+			exclude := false
+			x, found := schema.Lookup("exclusiveMinimum")
+			if found {
+				e, ok := x.(*json.Bool)
+				if !ok {
+					return fmt.Errorf("%q must be a boolean", schemaPath+"/exclusiveMinimum")
+				}
+				exclude = e.Value
+			}
 			switch min := i.(type) {
 			case *json.Number:
-				exclude := false
-				i, found := schema.Lookup("exclusiveMinimum")
-				if found {
-					e, ok := i.(*json.Bool)
-					if !ok {
-						return fmt.Errorf("%q must be a boolean", schemaPath+"/exclusiveMinimum")
-					}
-					exclude = e.Value
-				}
 				if exclude {
 					if float64(val.Value) <= min.Value {
 						return fmt.Errorf("%q must be greater than %g", path, min.Value)
@@ -745,15 +718,6 @@ func (v *Validator) validateAgainstSchema(path string, val json.Value, schemaPat
 					}
 				}
 			case *json.Integer:
-				exclude := false
-				i, found := schema.Lookup("exclusiveMinimum")
-				if found {
-					e, ok := i.(*json.Bool)
-					if !ok {
-						return fmt.Errorf("%q must be a boolean", schemaPath+"/exclusiveMinimum")
-					}
-					exclude = e.Value
-				}
 				if exclude {
 					if val.Value <= min.Value {
 						return fmt.Errorf("%q must be greater than %d", path, min.Value)
