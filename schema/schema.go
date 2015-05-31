@@ -120,7 +120,9 @@ func validateType(path string, v json.Value) error {
 				return fmt.Errorf("%q: %q is not a valid type", path, s)
 			}
 		}
-		// TODO(imax): verify uniqueItems constraint.
+		if err := uniqueItems(v); err != nil {
+			return fmt.Errorf("%q: %s", path, err)
+		}
 		return nil
 	default:
 		return fmt.Errorf("%q must be a string or an array of strings", path)
@@ -258,7 +260,9 @@ func validateStringArray(path string, v json.Value) error {
 			return fmt.Errorf("%q: each element must be a string", path)
 		}
 	}
-	// TODO(imax): verify uniqueItems constraint.
+	if err := uniqueItems(a); err != nil {
+		return fmt.Errorf("%q: %s", path, err)
+	}
 	return nil
 }
 

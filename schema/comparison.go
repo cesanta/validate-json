@@ -1,6 +1,8 @@
 package schema
 
 import (
+	"fmt"
+
 	json "github.com/cesanta/ucl"
 )
 
@@ -73,4 +75,15 @@ func equal(a json.Value, b json.Value) bool {
 	default:
 		return false
 	}
+}
+
+func uniqueItems(val *json.Array) error {
+	for i := range val.Value {
+		for j := i + 1; j < len(val.Value); j++ {
+			if equal(val.Value[i], val.Value[j]) {
+				return fmt.Errorf("all items must be unique, but item %d is equal to item %d", i, j)
+			}
+		}
+	}
+	return nil
 }

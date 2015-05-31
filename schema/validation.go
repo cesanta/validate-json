@@ -374,12 +374,8 @@ func (v *Validator) validateAgainstSchema(path string, val json.Value, schemaPat
 				return fmt.Errorf("%q must be a boolean", schemaPath+"/uniqueItems")
 			}
 			if u.Value {
-				for i := range val.Value {
-					for j := i + 1; j < len(val.Value); j++ {
-						if equal(val.Value[i], val.Value[j]) {
-							return fmt.Errorf("%q: all items must be unique, but item %d is equal to item %d", path, i, j)
-						}
-					}
+				if err := uniqueItems(val); err != nil {
+					return fmt.Errorf("%q: %s", path, err)
 				}
 			}
 		}
