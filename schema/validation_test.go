@@ -18,33 +18,8 @@ func serveRemotes(t *testing.T, done chan struct{}) {
 	}
 }
 
-func TestCompliance(t *testing.T) {
-	done := make(chan struct{})
-	go serveRemotes(t, done)
+func testFiles(t *testing.T, files []string, loader *Loader) {
 	var passing, total, schemaErrors int
-	f, err := os.Open("draft04schema.json")
-	if err != nil {
-		t.Fatalf("Failed to open draft04schema.json: %s", err)
-	}
-	s, err := json.Parse(f)
-	f.Close()
-	if err != nil {
-		t.Fatalf("Failed to parse draft04schema.json: %s", err)
-	}
-	loader := NewLoader()
-	loader.Add(s)
-	loader.EnableNetworkAccess(true)
-
-	select {
-	case <-done:
-		t.Fatalf("HTTP server died")
-	default:
-	}
-
-	files, err := filepath.Glob("schema-tests/tests/draft4/*.json")
-	if err != nil {
-		t.Fatalf("Test files not found: %s", err)
-	}
 	for _, file := range files {
 		f, err := os.Open(file)
 		if err != nil {
@@ -98,4 +73,41 @@ func TestCompliance(t *testing.T) {
 	if schemaErrors > 0 {
 		t.Logf("%d schemas failed validation", schemaErrors)
 	}
+}
+
+func TestCompliance(t *testing.T) {
+	done := make(chan struct{})
+	go serveRemotes(t, done)
+	f, err := os.Open("draft04schema.json")
+	if err != nil {
+		t.Fatalf("Failed to open draft04schema.json: %s", err)
+	}
+	s, err := json.Parse(f)
+	f.Close()
+	if err != nil {
+		t.Fatalf("Failed to parse draft04schema.json: %s", err)
+	}
+	loader := NewLoader()
+	loader.Add(s)
+	loader.EnableNetworkAccess(true)
+
+	select {
+	case <-done:
+		t.Fatalf("HTTP server died")
+	default:
+	}
+
+	files, err := filepath.Glob("schema-tests/tests/draft4/*.json")
+	if err != nil {
+		t.Fatalf("Test files not found: %s", err)
+	}
+	testFiles(t, files, loader)
+}
+
+func TestFormat(t *testing.T) {
+	testFiles(t, []string{"schema-tests/tests/draft4/optional/format.json"}, nil)
+}
+
+func TestZeroTerminatedFloats(t *testing.T) {
+	testFiles(t, []string{"schema-tests/tests/draft4/optional/zeroTerminatedFloats.json"}, nil)
 }

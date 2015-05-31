@@ -278,6 +278,17 @@ func (v *Validator) validateAgainstSchema(path string, val json.Value, schemaPat
 				return fmt.Errorf("%q must match regexp %q", path, pattern.Value)
 			}
 		}
+		v, found = schema.Lookup("format")
+		if found {
+			format, ok := v.(*json.String)
+			if !ok {
+				return fmt.Errorf("%q must be a string", schemaPath+"/format")
+			}
+			err := verifyFormat(val.Value, format.Value)
+			if err != nil {
+				return fmt.Errorf("%q does not comply with format %q: %s", path, format.Value, err)
+			}
+		}
 	case *json.Array:
 		i, found := schema.Lookup("items")
 		// If "items" is not present it is assumed to be an empty object, which
