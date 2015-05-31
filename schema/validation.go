@@ -242,7 +242,7 @@ func (v *Validator) validateAgainstSchema(path string, val json.Value, schemaPat
 			}
 		}
 		if !valid {
-			return fmt.Errorf("%q must be one of %q", path, enum)
+			return fmt.Errorf("%q must be one of %s", path, enum)
 		}
 	}
 
