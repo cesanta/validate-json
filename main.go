@@ -3,7 +3,6 @@ package main
 import (
 	"flag"
 	"fmt"
-	"io/ioutil"
 	"os"
 	"strings"
 
@@ -26,13 +25,14 @@ func main() {
 		os.Exit(1)
 	}
 
-	b, err := ioutil.ReadFile(*schemaFile)
+	f, err := os.Open(*schemaFile)
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "Failed to read %q: %s\n", *schemaFile, err)
+		fmt.Fprintf(os.Stderr, "Failed to open %q: %s\n", *schemaFile, err)
 		os.Exit(1)
 	}
 
-	s, err := schema.ParseDraft04Schema(b)
+	s, err := schema.ParseDraft04Schema(f)
+	f.Close()
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "Schema is not valid: %s\n", err)
 		os.Exit(1)
@@ -59,7 +59,7 @@ func main() {
 
 	validator := schema.NewValidator(s, loader)
 
-	f, err := os.Open(*inputFile)
+	f, err = os.Open(*inputFile)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "Failed to open input file: %s", err)
 		os.Exit(1)

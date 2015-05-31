@@ -1,8 +1,8 @@
 package schema
 
 import (
-	"bytes"
 	"fmt"
+	"io"
 	"net/url"
 	"regexp"
 
@@ -19,8 +19,8 @@ var validType = map[string]bool{
 	"string":  true,
 }
 
-func ParseDraft04Schema(b []byte) (json.Value, error) {
-	v, err := json.Parse(bytes.NewBuffer(b))
+func ParseDraft04Schema(r io.Reader) (json.Value, error) {
+	v, err := json.Parse(r)
 	if err != nil {
 		return nil, err
 	}
