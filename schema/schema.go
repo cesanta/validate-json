@@ -3,6 +3,7 @@ package schema
 import (
 	"bytes"
 	"fmt"
+	"net/url"
 	"regexp"
 
 	json "github.com/cesanta/ucl"
@@ -130,8 +131,8 @@ func validateType(path string, v json.Value) error {
 }
 
 func isValirURI(s string) error {
-	// TODO(imax): implement me.
-	return nil
+	_, err := url.Parse(s)
+	return err
 }
 
 func validateURI(path string, v json.Value) error {
