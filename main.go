@@ -1,3 +1,22 @@
+// validate-json is a utility for validation JSON values with JSON Schema.
+//
+// Usage example:
+//
+//   validate-json --schema path/to/schema.json --input path/to/data.json
+//
+// If everything is fine it will exit with status 0 and without any output. If
+// there was any errors, exit code will be non-zero and errors will be printed
+// to stderr.
+//
+// Additional flags:
+//
+//   --extra "schema1.json schema2.json ..."
+// Space-separated list of additional schema files to load so they can be
+// referenced from the primary schema. Each of the schemas in these files needs
+// to have "id" set.
+//
+//   -n
+// If present, referenced schemas will be fetched from the remote hosts.
 package main
 
 import (

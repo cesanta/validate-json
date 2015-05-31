@@ -10,11 +10,14 @@ import (
 	json "github.com/cesanta/ucl"
 )
 
+// Validator is an entity that validates random pieces of JSON.
 type Validator struct {
 	schema json.Value
 	loader *Loader
 }
 
+// NewValidator constructs a new Validator. If your schema contains refs to other
+// schemas you need to pass non-nil loader for validation to pass.
 func NewValidator(schema json.Value, loader *Loader) *Validator {
 	if loader != nil {
 		expandIdsAndRefsAndAddThemToLoader(nil, schema, loader)
@@ -22,6 +25,7 @@ func NewValidator(schema json.Value, loader *Loader) *Validator {
 	return &Validator{schema: schema, loader: loader}
 }
 
+// Validate checks that val conforms to schema passed to NewValidator.
 func (v *Validator) Validate(val json.Value) error {
 	return v.validateAgainstSchema("#", val, "#", v.schema)
 }

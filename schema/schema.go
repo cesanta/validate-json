@@ -19,6 +19,8 @@ var validType = map[string]bool{
 	"string":  true,
 }
 
+// ParseDraft04Schema parses UTF-8 encoded JSON from r and validates it as a
+// schema.
 func ParseDraft04Schema(r io.Reader) (json.Value, error) {
 	v, err := json.Parse(r)
 	if err != nil {
@@ -31,6 +33,7 @@ func ParseDraft04Schema(r io.Reader) (json.Value, error) {
 	return v, nil
 }
 
+// ValidateDraft04Schema checks that v is a valid JSON schema.
 func ValidateDraft04Schema(v json.Value) error {
 	return validateDraft04Schema("#", v)
 }
