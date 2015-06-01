@@ -17,9 +17,17 @@
 //
 //   -n
 // If present, referenced schemas will be fetched from the remote hosts.
+//
+//   -nodraft04schema
+// If present, copy of http://json-schema.org/draft-04/schema embedded in the
+// binary will not be pre-loaded.
 package main
 
+// go get github.com/jteeuwen/go-bindata/go-bindata
+//go:generate go-bindata -nocompress -ignore=.*\.go$ -prefix=schema/ schema/
+
 import (
+	"bytes"
 	"flag"
 	"fmt"
 	"os"
@@ -30,10 +38,11 @@ import (
 )
 
 var (
-	schemaFile = flag.String("schema", "", "Path to schema to use.")
-	inputFile  = flag.String("input", "", "Path to the JSON data to validate.")
-	network    = flag.Bool("n", false, "If true, fetching of referred schemas from remote hosts will be enabled.")
-	extra      = flag.String("extra", "", "Space-separated list of schema files to pre-load for the purpose of remote references. Each schema needs to have 'id' property.")
+	schemaFile        = flag.String("schema", "", "Path to schema to use.")
+	inputFile         = flag.String("input", "", "Path to the JSON data to validate.")
+	network           = flag.Bool("n", false, "If true, fetching of referred schemas from remote hosts will be enabled.")
+	extra             = flag.String("extra", "", "Space-separated list of schema files to pre-load for the purpose of remote references. Each schema needs to have 'id' property.")
+	skipDefaultSchema = flag.Bool("nodraft04schema", false, "If set to true, http://json-schema.org/draft-04/schema will not be pre-loaded.")
 )
 
 func main() {
@@ -63,16 +72,29 @@ func main() {
 		for _, file := range strings.Split(*extra, " ") {
 			f, err := os.Open(file)
 			if err != nil {
-				fmt.Fprintf(os.Stderr, "Failed to open %q: %s", file, err)
+				fmt.Fprintf(os.Stderr, "Failed to open %q: %s\n", file, err)
 				os.Exit(1)
 			}
 			s, err := json.Parse(f)
 			f.Close()
 			if err != nil {
-				fmt.Fprintf(os.Stderr, "Failed to parse %q: %s", file, err)
+				fmt.Fprintf(os.Stderr, "Failed to parse %q: %s\n", file, err)
 				os.Exit(1)
 			}
 			loader.Add(s)
+		}
+	}
+	if !*skipDefaultSchema {
+		ds, err := json.Parse(bytes.NewBuffer(MustAsset("draft04schema.json")))
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "Failed to parse embedded draft 04 schema: %s\n", err)
+			os.Exit(1)
+		}
+		// Just to be sure, schema.ParseDraft04Schema exercises different code path.
+		v := schema.NewValidator(ds, loader)
+		if err := v.Validate(s); err != nil {
+			fmt.Fprintln(os.Stderr, "If you see this message, please file a bug and attach the schema you're using.")
+			fmt.Fprintf(os.Stderr, "Warning: failed to validate %q with draft 04 schema: %s\n", *schemaFile, err)
 		}
 	}
 
@@ -80,13 +102,13 @@ func main() {
 
 	f, err = os.Open(*inputFile)
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "Failed to open input file: %s", err)
+		fmt.Fprintf(os.Stderr, "Failed to open input file: %s\n", err)
 		os.Exit(1)
 	}
 	defer f.Close()
 	data, err := json.Parse(f)
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "Failed to parse input file: %s", err)
+		fmt.Fprintf(os.Stderr, "Failed to parse input file: %s\n", err)
 		os.Exit(1)
 	}
 	if err := validator.Validate(data); err != nil {
