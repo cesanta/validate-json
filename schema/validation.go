@@ -48,7 +48,7 @@ func (v *Validator) getSchemaByRef(uri string) (json.Value, json.Value, error) {
 	if i := strings.Index(uri, "#"); i > 0 {
 		u, err := url.Parse(uri)
 		if err != nil {
-			return nil, nil, fmt.Errorf("failed tp parse %q: %s", uri, err)
+			return nil, nil, fmt.Errorf("failed to parse %q: %s", uri, err)
 		}
 		ref := u.Fragment
 		u.Fragment = ""
