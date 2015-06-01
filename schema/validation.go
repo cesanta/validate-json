@@ -35,40 +35,29 @@ func (v *Validator) Validate(val json.Value) error {
 // by the uri without a fragment part, which is needed to properly resolve references
 // in the first schema.
 func (v *Validator) getSchemaByRef(uri string) (json.Value, json.Value, error) {
-	if strings.HasPrefix(uri, "#") {
-		u, err := url.Parse(uri)
-		if err != nil {
-			return nil, nil, fmt.Errorf("failed tp parse %q: %s", uri, err)
-		}
-		r, err := resolveRef(v.schema, u.Fragment)
-		if err != nil {
-			return nil, nil, fmt.Errorf("failed to resolve ref %q: %s", uri, err)
-		}
-		return r, v.schema, nil
+	u, err := url.Parse(uri)
+	if err != nil {
+		return nil, nil, fmt.Errorf("failed to parse %q: %s", uri, err)
 	}
-	if v.loader == nil {
-		return nil, nil, fmt.Errorf("need to have a loader (passed to NewValidator) to resolve remote refs")
-	}
-	if i := strings.Index(uri, "#"); i > 0 {
-		u, err := url.Parse(uri)
-		if err != nil {
-			return nil, nil, fmt.Errorf("failed to parse %q: %s", uri, err)
+	s, ref := v.schema, u.Fragment
+
+	if !strings.HasPrefix(uri, "#") {
+		if v.loader == nil {
+			return nil, nil, fmt.Errorf("need to have a loader (passed to NewValidator) to resolve remote refs")
 		}
-		ref := u.Fragment
 		u.Fragment = ""
 		uri := u.String()
-		s, err := v.loader.Get(uri)
+		s, err = v.loader.Get(uri)
 		if err != nil {
 			return nil, nil, err
 		}
-		r, err := resolveRef(s, ref)
-		if err != nil {
-			return nil, nil, fmt.Errorf("failed to resolve ref %q within %q: %s", ref, uri, err)
-		}
-		return r, s, nil
 	}
-	r, err := v.loader.Get(uri)
-	return r, r, err
+
+	r, err := resolveRef(s, ref)
+	if err != nil {
+		return nil, nil, fmt.Errorf("failed to resolve ref %q: %s", uri, err)
+	}
+	return r, s, nil
 }
 
 func isOfType(val json.Value, t string) bool {
