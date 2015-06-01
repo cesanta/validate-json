@@ -133,7 +133,7 @@ func validateType(path string, v json.Value) error {
 	}
 }
 
-func isValirURI(s string) error {
+func isValidURI(s string) error {
 	_, err := url.Parse(s)
 	return err
 }
@@ -143,7 +143,7 @@ func validateURI(path string, v json.Value) error {
 	if !ok {
 		return fmt.Errorf("%q must be a string", path)
 	}
-	if err := isValirURI(s.Value); err != nil {
+	if err := isValidURI(s.Value); err != nil {
 		return fmt.Errorf("%q must be a valid URI: %s", path, err)
 	}
 	return nil
