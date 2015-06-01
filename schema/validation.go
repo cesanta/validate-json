@@ -19,9 +19,10 @@ type Validator struct {
 // NewValidator constructs a new Validator. If your schema contains refs to other
 // schemas you need to pass non-nil loader for validation to pass.
 func NewValidator(schema json.Value, loader *Loader) *Validator {
-	if loader != nil {
-		expandIdsAndRefsAndAddThemToLoader(nil, schema, loader)
+	if loader == nil {
+		loader = NewLoader()
 	}
+	expandIdsAndRefsAndAddThemToLoader(nil, schema, loader)
 	return &Validator{schema: schema, loader: loader}
 }
 
@@ -42,9 +43,6 @@ func (v *Validator) getSchemaByRef(uri string) (json.Value, json.Value, error) {
 	s, ref := v.schema, u.Fragment
 
 	if !strings.HasPrefix(uri, "#") {
-		if v.loader == nil {
-			return nil, nil, fmt.Errorf("need to have a loader (passed to NewValidator) to resolve remote refs")
-		}
 		u.Fragment = ""
 		uri := u.String()
 		s, err = v.loader.Get(uri)
