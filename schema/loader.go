@@ -56,7 +56,7 @@ func (l *Loader) Add(schema json.Value) error {
 
 // AddAs adds schema to the cache as if its 'id' property was set to id.
 func (l *Loader) AddAs(schema json.Value, id string) error {
-	s, ok := schema.(*json.Object)
+	_, ok := schema.(*json.Object)
 	if !ok {
 		return fmt.Errorf("schema must be an object")
 	}
