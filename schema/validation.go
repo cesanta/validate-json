@@ -30,6 +30,10 @@ func (v *Validator) Validate(val json.Value) error {
 	return v.validateAgainstSchema("#", val, "#", v.schema)
 }
 
+// getSchemaByRef resolves a schema reference to the actual schema. It returns
+// 2 values: first is the schema referenced by uri, second is the schema referenced
+// by the uri without a fragment part, which is needed to properly resolve references
+// in the first schema.
 func (v *Validator) getSchemaByRef(uri string) (json.Value, json.Value, error) {
 	if strings.HasPrefix(uri, "#") {
 		u, err := url.Parse(uri)
