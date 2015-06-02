@@ -18,12 +18,16 @@ type Validator struct {
 
 // NewValidator constructs a new Validator. If your schema contains refs to other
 // schemas you need to pass non-nil loader for validation to pass.
-func NewValidator(schema json.Value, loader *Loader) *Validator {
+func NewValidator(schema json.Value, loader *Loader) (*Validator, error) {
+	err := ValidateDraft04Schema(schema)
+	if err != nil {
+		return nil, err
+	}
 	if loader == nil {
 		loader = NewLoader()
 	}
 	expandIdsAndRefsAndAddThemToLoader(nil, schema, loader)
-	return &Validator{schema: schema, loader: loader}
+	return &Validator{schema: schema, loader: loader}, nil
 }
 
 // Validate checks that val conforms to schema passed to NewValidator.
@@ -94,7 +98,11 @@ func (v *Validator) validateAgainstSchema(path string, val json.Value, schemaPat
 		if err != nil {
 			return err
 		}
-		return NewValidator(whole, v.loader).validateAgainstSchema(path, val, sref.Value, s)
+		nv, err := NewValidator(whole, v.loader)
+		if err != nil {
+			return err
+		}
+		return nv.validateAgainstSchema(path, val, sref.Value, s)
 	}
 
 	t, found := schema.Lookup("type")

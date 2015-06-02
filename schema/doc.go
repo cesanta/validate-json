@@ -8,15 +8,18 @@
 // Usage example:
 //
 //   // Load the schema.
-//   s, err := schema.ParseDraft04Schema(f)
+//   s, err := json.Parse(f)
 //   if err != nil {
-//      log.Fatalf("Schema is not valid: %s", err)
+//      log.Fatalf("Failed to parse the schema: %s", err)
 //   }
 //
 //   // Construct validator.
 //   loader := schema.NewLoader()
 //   loader.EnableNetworkAccess(*network)
-//   validator := schema.NewValidator(s, loader)
+//   validator, err := schema.NewValidator(s, loader)
+//   if err != nil {
+//      log.Fatal("Failed to construct validator: %s", err)
+//   }
 //
 //   // Validate some data.
 //   if err := validator.Validate(data); err != nil {

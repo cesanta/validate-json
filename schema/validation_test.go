@@ -47,7 +47,7 @@ func testFiles(t *testing.T, files []string, loader *Loader) {
 				t.Errorf(color.RedString("schema does not pass validation: %s", err))
 				schemaErrors++
 			}
-			v := NewValidator(test.Find("schema"), loader)
+			v, _ := NewValidator(schema, loader) // not checking the error since schema is already validated
 			cases := test.Find("tests").(*json.Array)
 			for _, c := range cases.Value {
 				total++

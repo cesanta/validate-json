@@ -59,10 +59,10 @@ func main() {
 		os.Exit(1)
 	}
 
-	s, err := schema.ParseDraft04Schema(f)
+	s, err := json.Parse(f)
 	f.Close()
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "Schema is not valid: %s\n", err)
+		fmt.Fprintf(os.Stderr, "Failed to read schema: %s\n", err)
 		os.Exit(1)
 	}
 
@@ -91,14 +91,22 @@ func main() {
 			os.Exit(1)
 		}
 		// Just to be sure, schema.ParseDraft04Schema exercises different code path.
-		v := schema.NewValidator(ds, loader)
-		if err := v.Validate(s); err != nil {
-			fmt.Fprintln(os.Stderr, "If you see this message, please file a bug and attach the schema you're using.")
-			fmt.Fprintf(os.Stderr, "Warning: failed to validate %q with draft 04 schema: %s\n", *schemaFile, err)
+		v, err := schema.NewValidator(ds, loader)
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "Failed to create validator for draft04 schema, please file a bug: %s\n", err)
+		} else {
+			if err := v.Validate(s); err != nil {
+				fmt.Fprintln(os.Stderr, "If you see this message, please file a bug and attach the schema you're using.")
+				fmt.Fprintf(os.Stderr, "Warning: failed to validate %q with draft 04 schema: %s\n", *schemaFile, err)
+			}
 		}
 	}
 
-	validator := schema.NewValidator(s, loader)
+	validator, err := schema.NewValidator(s, loader)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "Failed to create validator: %s\n", err)
+		os.Exit(1)
+	}
 
 	f, err = os.Open(*inputFile)
 	if err != nil {

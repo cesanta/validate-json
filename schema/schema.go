@@ -2,7 +2,6 @@ package schema
 
 import (
 	"fmt"
-	"io"
 	"net/url"
 	"regexp"
 
@@ -17,20 +16,6 @@ var validType = map[string]bool{
 	"number":  true,
 	"object":  true,
 	"string":  true,
-}
-
-// ParseDraft04Schema parses UTF-8 encoded JSON from r and validates it as a
-// schema.
-func ParseDraft04Schema(r io.Reader) (json.Value, error) {
-	v, err := json.Parse(r)
-	if err != nil {
-		return nil, err
-	}
-	err = ValidateDraft04Schema(v)
-	if err != nil {
-		return nil, err
-	}
-	return v, nil
 }
 
 // ValidateDraft04Schema checks that v is a valid JSON schema.
